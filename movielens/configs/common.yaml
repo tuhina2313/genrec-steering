@@ -1,0 +1,105 @@
+# Shared settings for every dataset. Dataset files override; profiles are selected at run time.
+schema_version: 1
+
+model:
+  name: Qwen/Qwen2.5-3B-Instruct
+  revision: null            # null -> resolved to an immutable commit sha at load time and recorded
+  tokenizer_revision: null  # null -> same immutable sha as the model
+  dtype: auto               # auto: bf16 on CUDA if supported, else fp16; float32 on CPU
+  attn_implementation: sdpa
+  device: auto
+  max_prompt_tokens: 1536
+  microbatch: 8             # starting pair microbatch; halved on CUDA OOM (effective size recorded)
+  min_microbatch: 1
+  local_files_only: false
+
+scoring:
+  scorer_version: yesno_logit_diff_v1   # score = logit(positive) - logit(negative) at the response position
+  prompt_version: rec_yesno_v1
+  verbalizer:
+    positive: "Yes"
+    negative: "No"
+    fallback_positive: "A"     # used only if Yes/No are not single tokens; prompt then defines A/B
+    fallback_negative: "B"
+  hook_location: block_output
+  prediction_position: last_valid_prompt_token
+  lm_head_parity_pairs: 4
+  lm_head_parity_atol: {float32: 1.0e-3, bfloat16: 0.25, float16: 0.1}
+  part_size: 64               # pairs per resumable cache part
+
+seeds:
+  data_seed: 42
+  bootstrap_seed: 20260101
+
+history:
+  max_items: 20
+  min_items: 5
+
+candidates:
+  min_count: 5               # required for main reported query metrics
+
+splits:
+  percentiles: [0.6, 0.8, 0.9]
+  reserved_fraction: 0.2     # unseen_by_direction users
+  inner_fit_fraction: 0.8    # of the remaining users: inner fit vs probe validation
+  min_eval_queries: 20       # below this, the main protocol is not_estimable
+
+directions:
+  C_grid: [0.01, 0.1, 1, 10]
+  max_iter: 5000
+  per_user_class_cap: 5
+
+steering:
+  reversal_strength: -0.03       # direction-reversal diagnostic; never selectable
+  identity_check_pairs: 64       # strength-0 identity check subset
+  postnorm_null_strength: 0.1    # constant vector after final norm (ranking-invariance control)
+  controls_on_full_grid: true    # random / shuffled-label controls use the same layer x strength grid
+
+comparators:
+  lambda_grid: [0, 0.25, 0.5, 1, 2]
+  item_prior_smoothing: 10
+  item_shift_min_support: 3
+
+evaluation:
+  bootstrap_draws: 2000
+  ci_level: 0.95
+
+work_cap:
+  max_forward_pairs: null    # if set, exceeding it yields a clearly labeled partial stage
+
+profiles:
+  smoke:
+    direction_examples_per_class: 32
+    max_validation_users: 8
+    max_test_users: 16
+    max_candidates: 5
+    layer_fractions: [1.0]
+    direction_seeds: [42]
+    strengths: [0.03]
+    probe_val_cap: 128
+    guardrail_budgets: [0.01]
+    bootstrap_draws: 200
+    min_eval_queries: 4
+  pilot:
+    direction_examples_per_class: 256
+    max_validation_users: 64
+    max_test_users: 128
+    max_candidates: 20
+    layer_fractions: [0.5, 1.0]
+    direction_seeds: [42]
+    strengths: [0.01, 0.03, 0.10]
+    probe_val_cap: 1024
+    guardrail_budgets: [0.01]
+    bootstrap_draws: 2000
+  paper:
+    direction_examples_per_class: 1000
+    max_validation_users: 256
+    max_test_users: 1000
+    max_candidates: 50
+    layer_fractions: [0.25, 0.5, 0.75, 1.0]
+    direction_seeds: [42, 43, 44]
+    strengths: [0.01, 0.03, 0.10]
+    probe_val_cap: 4096
+    guardrail_budgets: [0.0, 0.01, 0.02]
+    bootstrap_draws: 2000
+    optional_analyses: []    # must be enumerated here before execution (e.g. validation learning curves)

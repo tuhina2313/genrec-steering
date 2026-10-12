@@ -1,0 +1,47 @@
+dataset:
+  key: movielens_1m
+  protocol_id: observed_feedback_rerank_v1
+  candidate_source: observed_future_ratings_in_outcome_period
+  archive_url: https://files.grouplens.org/datasets/movielens/ml-1m.zip
+  readme_url: https://files.grouplens.org/datasets/movielens/ml-1m-README.txt
+  archive_name: ml-1m.zip
+  inner_dir: ml-1m
+  ratings_file: ratings.dat
+  movies_file: movies.dat
+  encoding: latin-1
+  delimiter: "::"
+  item_noun: movie
+  feedback_convention: >-
+    Each history line is a movie the user rated earlier, with its title, release year when known,
+    genres, and the user's rating on a 1-5 star scale (5 = loved it, 1 = disliked it).
+  repeated_rating_rule: keep_earliest_within_outcome_window
+  attribute_genre: Comedy
+
+objectives:
+  satisfaction:
+    target: ndcg_like@5
+    guardrail: ndcg_rating@5
+    fit_class_column: fit_class__satisfaction    # 1: rating 4-5, 0: rating 1-2, null: rating 3
+    prompt_instruction: >-
+      Prioritize movies this user would rate highly: answer Yes only if they would likely give it 4 or 5 stars.
+  comedy:
+    target: comedy_exposure@5
+    guardrail: ndcg_rating@5
+    fit_class_column: fit_class__comedy          # 1: Comedy among genres, 0: not
+    attribute_column: target_attribute
+    prompt_instruction: >-
+      The platform wants to recommend more Comedy movies: lean towards Yes for Comedy candidates.
+
+metrics:
+  - {name: ndcg_like@5, type: ndcg, k: 5, gain: satisfaction_label}
+  - {name: ndcg_rating@5, type: ndcg, k: 5, gain: graded_gain}
+  - {name: precision_like@1, type: precision, k: 1, gain: satisfaction_label}
+  - {name: precision_like@3, type: precision, k: 3, gain: satisfaction_label}
+  - {name: precision_like@5, type: precision, k: 5, gain: satisfaction_label}
+  - {name: precision_like@10, type: precision, k: 10, gain: satisfaction_label}
+  - {name: recall_like@5, type: recall, k: 5, gain: satisfaction_label}
+  - {name: recall_like@10, type: recall, k: 10, gain: satisfaction_label}
+  - {name: mrr_like, type: mrr, gain: satisfaction_label}
+  - {name: mean_rating@5, type: mean_at_k, k: 5, column: rating}
+  - {name: low_rating_rate@5, type: mean_at_k, k: 5, column: low_rating}
+  - {name: comedy_exposure@5, type: mean_at_k, k: 5, column: target_attribute}

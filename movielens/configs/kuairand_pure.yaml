@@ -1,0 +1,9 @@
+# KuaiRand-Pure overrides. The companion memo has not been supplied to this implementation yet.
+# The shared engine dispatches on dataset.key; data.py raises a machine-readable blocked status
+# for this key until the adapter is implemented from that memo. Do not copy model/probe/steering code.
+dataset:
+  key: kuairand_pure
+  protocol_id: null          # defined by the companion memo
+  status: awaiting_companion_memo
+objectives: {}
+metrics: []
